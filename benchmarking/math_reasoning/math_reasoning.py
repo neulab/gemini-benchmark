@@ -21,16 +21,17 @@ from torch.utils.data import DataLoader
 from litellm import acompletion
 import yaml
 import click
+import sys
+sys.path.append('../utils')
+
+
+from reasoning_utils import * 
+
 
 os.environ["OPENAI_API_KEY"] = "######"
 
 
-def read_jsonl(path: str):
-    with open(path) as fh:
-        return [json.loads(line) for line in fh.readlines() if line]
-
-
-def get_examples_gsm8k(split):
+def get_examples_gsm8k(split, N=None):
     path = os.path.join("data/", f"{split}.jsonl")
     examples = read_jsonl(path)
 
@@ -38,10 +39,13 @@ def get_examples_gsm8k(split):
         ex.update(question=ex["question"] + "\n")
         ex.update(answer=ex["answer"] + "<|endoftext|>")
 
+    if N != None:
+        examples = examples[:N]
+        
     print(f"{len(examples)} {split} examples")
     return examples
 
-def get_examples_svamp(split):
+def get_examples_svamp(split, N=None):
     path = os.path.join("data/", f"{split}.jsonl")
     examples = read_jsonl(path)
 
@@ -51,28 +55,12 @@ def get_examples_svamp(split):
         del ex['input']
         del ex["target"]
 
+    if N != None:
+        examples = examples[:N]
+        
     print(f"{len(examples)} {split} examples")
     return examples
 
-
-ANS_RE = re.compile(r"#### (\-?[0-9\.\,]+)")
-INVALID_ANS = "[invalid]"
-
-
-def extract_answer(completion):
-    match = ANS_RE.search(completion)
-    if match:
-        match_str = match.group(1).strip()
-        match_str = match_str.replace(",", "")
-        return match_str
-    else:
-        return INVALID_ANS
-
-
-def is_correct(model_completion, gt_example):
-    gt_answer = extract_answer(gt_example["answer"])
-    assert gt_answer != INVALID_ANS
-    return extract_answer(model_completion) == gt_answer
 
 
 class GSMDataset(th.utils.data.Dataset):
@@ -93,46 +81,10 @@ class GSMDataset(th.utils.data.Dataset):
         return qid, qn, ans
 
 
-
-
-async def dispatch_openai_requests(
-    messages_list: list,
-    model: str,
-    temperature: float,
-    max_tokens: int,
-    top_p: float
-):
-    """Dispatches requests to OpenAI API asynchronously.
-    
-    Args:
-        messages_list: List of messages to be sent to OpenAI ChatCompletion API.
-        model: OpenAI model to use.
-        temperature: Temperature to use for the model.
-        max_tokens: Maximum number of tokens to generate.
-        top_p: Top p to use for the model.
-    Returns:
-        List of responses from OpenAI API.
-    """
-    
-    async_responses = [
-        await acompletion(
-            model="gpt-3.5-turbo",
-            messages=x,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            top_p=top_p,
-        )
-        for x in messages_list
-    ]
-        
-    return async_responses
-
-
-
 @click.command()
 @click.option("--task", default='gsm8k', type=str)
 @click.option("--model", default='gpt-3.5-turbo', type=str)
-def main(task):
+def main(task, model):
     
     with open("gsm8k-cot.yaml", 'r') as stream:
         data_loaded = yaml.safe_load(stream)
@@ -141,13 +93,13 @@ def main(task):
     question_answer_list = []
     
     if task == 'gsm8k':
-        test_examples = get_examples_gsm8k("gsm8k")
+        test_examples = get_examples_gsm8k("gsm8k", N=10)
     elif task == 'svamp':
-        test_examples = get_examples_svamp("svamp")
+        test_examples = get_examples_svamp("svamp", N=10)
     elif task == 'asdiv':
-        test_examples = get_examples_svamp("asdiv")
+        test_examples = get_examples_svamp("asdiv", N=10)
     elif task == 'mawpsmultiarith':
-        test_examples = get_examples_svamp("mawpsmultiarith")
+        test_examples = get_examples_svamp("mawpsmultiarith", N=10)
     
     
     # test_examples = get_examples("test_10")
@@ -179,7 +131,9 @@ def main(task):
                                          'answer': a,
                                          'prediction': response.choices[0].message.content})
             
-        
+    if not os.path.exists(f'/home/sakter/courses/Fall_2023/openai/outputs/{task}'):
+        os.makedirs(f'/home/sakter/courses/Fall_2023/openai/outputs/{task}')    
+    
     with open(f'/home/sakter/courses/Fall_2023/openai/outputs/{task}/output.jsonl', 'w') as f:
         for d in question_answer_list:
             json.dump(d, f)
