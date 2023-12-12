@@ -56,7 +56,7 @@ def main():
     scores_dict = {f"pass@{idx}": [] for idx in range(1, args.n + 1)}
     outputs_file = open(f"{args.output_path}_outputs.json", "a")
 
-    for i, sample in tqdm(enumerate(dataset[:10])):
+    for i, sample in tqdm(enumerate(dataset)):
         if "suffix" in sample:
             # current gpts cannot handle suffix
             if sample["suffix"] != "":
