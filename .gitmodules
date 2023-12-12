@@ -1,0 +1,3 @@
+[submodule "benchmarking/agent/src/webarena"]
+	path = benchmarking/agent/src/webarena
+	url = https://github.com/oootttyyy/webarena.git
