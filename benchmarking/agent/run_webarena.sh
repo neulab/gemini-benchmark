@@ -2,7 +2,7 @@
 
 result_dir="cache/gpt_4_1106_cot_no_na"
 model="gpt-4-1106-preview"
-instruction_path="src/webarena/agent/prompts/jsons/p_cot_id_actree_2s.json"
+instruction_path="src/webarena/agent/prompts/jsons/p_cot_id_actree_2s_no_na.json"
 
 SERVER=""
 OPENAI_API_KEY=""
