@@ -1,3 +1,0 @@
-[submodule "agent/src/webarena"]
-	path = agent/src/webarena
-	url = https://github.com/web-arena-x/webarena.git
