@@ -35,7 +35,7 @@ done
 # Function to run a job
 run_job() {
     tmux select-pane -t $1
-    tmux send-keys "conda activate ${CONDA_ENV_NAME}; ${ENV_VARIABLES}; until python src/webarena/run.py --test_start_idx $2 --test_end_idx $3 --model ${model} --instruction_path ${instruction_path} --result_dir ${result_dir}; do echo 'crashed' >&2; sleep 1; done" C-m
+    tmux send-keys "conda activate ${CONDA_ENV_NAME}; ${ENV_VARIABLES}; until python src/webarena/run.py --test_start_idx $2 --test_end_idx $3 --model ${model} --mode openai_chat_api --instruction_path ${instruction_path} --result_dir ${result_dir} --temperature 0; do echo 'crashed' >&2; sleep 1; done" C-m
     sleep 3
 }
 
