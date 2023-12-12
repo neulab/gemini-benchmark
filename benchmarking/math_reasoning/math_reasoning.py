@@ -22,45 +22,12 @@ from litellm import acompletion
 import yaml
 import click
 import sys
+from litellm import Router
 sys.path.append('../utils')
-
-
 from reasoning_utils import * 
 
 
 os.environ["OPENAI_API_KEY"] = "######"
-
-
-def get_examples_gsm8k(split, N=None):
-    path = os.path.join("data/", f"{split}.jsonl")
-    examples = read_jsonl(path)
-
-    for ex in examples:
-        ex.update(question=ex["question"] + "\n")
-        ex.update(answer=ex["answer"] + "<|endoftext|>")
-
-    if N != None:
-        examples = examples[:N]
-        
-    print(f"{len(examples)} {split} examples")
-    return examples
-
-def get_examples_svamp(split, N=None):
-    path = os.path.join("data/", f"{split}.jsonl")
-    examples = read_jsonl(path)
-
-    for ex in examples:
-        ex.update(question=ex["input"] + "\n")
-        ex.update(answer=str(ex["target"]))
-        del ex['input']
-        del ex["target"]
-
-    if N != None:
-        examples = examples[:N]
-        
-    print(f"{len(examples)} {split} examples")
-    return examples
-
 
 
 class GSMDataset(th.utils.data.Dataset):
@@ -101,8 +68,6 @@ def main(task, model):
     elif task == 'mawpsmultiarith':
         test_examples = get_examples_svamp("mawpsmultiarith", N=10)
     
-    
-    # test_examples = get_examples("test_10")
     test_dset = GSMDataset(test_examples)
     test_loader = DataLoader(test_dset, batch_size=8, shuffle=True)
 
@@ -126,13 +91,24 @@ def main(task, model):
         )
 
         for i, (response, qi, q, a) in enumerate(zip(predictions, qid, qn, ans)):
-            question_answer_list.append({'qid': qi.item(),
-                                         'question': q,
-                                         'answer': a,
-                                         'prediction': response.choices[0].message.content})
+            al = {'qid': qi.item(),
+                  'prompt': prompt.replace("{{question}}", "{question}").format(question=q),
+                  'question': q,
+                  'generated_text': response.choices[0].message.content}
+            
+            if task == 'gsm8k': 
+                only_a = extract_answer(a)
+                al['answer'] = only_a
+                al['answer_text'] = a
+            else:
+                al['answer'] = a
+                
+            question_answer_list.append(al)
             
     if not os.path.exists(f'/home/sakter/courses/Fall_2023/openai/outputs/{task}'):
         os.makedirs(f'/home/sakter/courses/Fall_2023/openai/outputs/{task}')    
+    
+    question_answer_list = return_predicted_answer(question_answer_list)
     
     with open(f'/home/sakter/courses/Fall_2023/openai/outputs/{task}/output.jsonl', 'w') as f:
         for d in question_answer_list:

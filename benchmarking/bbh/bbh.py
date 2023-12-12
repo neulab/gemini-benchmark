@@ -27,24 +27,6 @@ from reasoning_utils import *
 os.environ["OPENAI_API_KEY"] = "#######"
 
 
-def get_examples(split, N=None):
-    path = os.path.join("data/bbh/", f"{split}.jsonl")
-    
-    examples = read_jsonl(path)
-        
-    for ex in examples:
-        ex.update(question=ex["input"]+ "\n")
-        ex.update(answer=ex["target"])
-        del ex['input']
-        del ex["target"]
-        
-    if N != None:
-        examples = examples[:N]
-
-    print(f"{len(examples)} {split} examples")
-    return examples
-
-
 class BBHDataset(th.utils.data.Dataset):
     def __init__(self, examples):
         self.examples = examples
@@ -101,13 +83,16 @@ def main(task, model):
 
         for i, (response, qi, q, a) in enumerate(zip(predictions, qid, qn, ans)):
             question_answer_list.append({'qid': qi.item(),
+                                         'prompt': prompt.replace("{{input}}", "{input}").format(input=q),
                                          'question': q,
                                          'answer': a,
-                                         'prediction': response.choices[0].message.content})
+                                         'generated_text': response.choices[0].message.content})
             
     if not os.path.exists(f'/home/sakter/courses/Fall_2023/openai/outputs/bbh/{task}'):
         os.makedirs(f'/home/sakter/courses/Fall_2023/openai/outputs/bbh/{task}')
-        
+    
+    question_answer_list = get_answer(question_answer_list)
+    
     with open(f'/home/sakter/courses/Fall_2023/openai/outputs/bbh/{task}/output.jsonl', 'w') as f:
         for d in question_answer_list:
             json.dump(d, f)
