@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import dotenv
 
-dotenv.load_dotenv(override=True)
+dotenv.load_dotenv("../.env", override=True)
 
 OUTPUT_DIR = "../../outputs/MMLU"
 
@@ -20,16 +20,15 @@ base_df = pd.DataFrame(
     }
 )
 
-os.environ["ZENO_API_KEY"] = ""
 zeno_client = ZenoClient(os.environ.get("ZENO_API_KEY"))
 
 project = zeno_client.create_project(
     name="Gemini Evaluation - MMLU",
     description="Evaluation of Gemini, GPT-4, and Mixtral on MMLU dataset",
     view={
-        "data": {"type": "markdown"},
-        "label": {"type": "markdown"},
-        "output": {"type": "markdown"},
+        "data": {"type": "text"},
+        "label": {"type": "text"},
+        "output": {"type": "text"},
     },
     public=True,
     metrics=[

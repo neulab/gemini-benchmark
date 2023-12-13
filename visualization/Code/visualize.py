@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import dotenv
 
-dotenv.load_dotenv(override=True)
+dotenv.load_dotenv("../.env", override=True)
 
 dataset = "HumanEval"
 OUTPUT_DIR = f"../../outputs/{dataset}"
@@ -15,23 +15,22 @@ df = pd.read_json(os.path.join(OUTPUT_DIR, models[0], "output.jsonl"), lines=Tru
 base_df = pd.DataFrame(
     {
         "qid": df.index,
-        "question": df["prompt"].apply(lambda x: f"```python\n{x}\n```"),
+        "question": df["prompt"],
         "answer": df["canonical_solution"],
     }
 )
 
-os.environ["ZENO_API_KEY"] = ""
 zeno_client = ZenoClient(os.environ.get("ZENO_API_KEY"))
 
 project = zeno_client.create_project(
     name=f"Gemini Evaluation - {dataset}",
     description=f"Evaluation of Gemini, GPT-4, and Mixtral on {dataset} dataset",
     view={
-        "data": {"type": "markdown"},
-        "label": {"type": "markdown"},
+        "data": {"type": "code"},
+        "label": {"type": "code"},
         "output": {
             "type": "vstack",
-            "keys": {"output": {"type": "markdown"}, "result": {"type": "markdown"}},
+            "keys": {"output": {"type": "code"}, "result": {"type": "text"}},
         },
     },
     public=True,
@@ -47,7 +46,7 @@ project.upload_dataset(
 
 def process_row(row):
     return {
-        "output": f"```python\n{row['predictions'][0]}\n```",
+        "output": row["predictions"][0],
         "result": row["output"][0][1]["result"],
     }
 
