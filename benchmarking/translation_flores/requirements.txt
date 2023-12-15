@@ -1,0 +1,9 @@
+zeno-build==0.0.7
+openai==0.28.0
+sacrebleu
+sentencepiece
+pandas
+numpy
+transformers
+evaluate
+datasets
