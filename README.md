@@ -1,6 +1,6 @@
 # Gemini Benchmark
 
-by [CMU](https://cmu.edu), [Zeno](https://zenoml.com), and [litellm](https://github.com/BerriAI/litellm)
+by [CMU](https://cmu.edu), [Zeno](https://zenoml.com), and [BerriAI LiteLLM](https://github.com/BerriAI/litellm)
 
 ## File Structure
 
