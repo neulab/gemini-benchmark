@@ -33,6 +33,7 @@ project = zeno_client.create_project(
     public=True,
     metrics=[
         ZenoMetric(name="Accuracy", type="mean", columns=["correct"]),
+        ZenoMetric(name="Answered", type="mean", columns=["output_length"]),
     ],
 )
 
