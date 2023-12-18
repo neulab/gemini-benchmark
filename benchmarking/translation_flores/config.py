@@ -69,7 +69,8 @@ dataset_configs = {
 model_configs = {
     "text-davinci-003": LMConfig(provider="openai", model="text-davinci-003"),
     "gpt-3.5-turbo": LMConfig(provider="openai_chat", model="gpt-3.5-turbo"),
-    "gpt-4": LMConfig(provider="openai_chat", model="gpt-4"),
+    "gpt-4-turbo": LMConfig(provider="openai_chat", model="gpt-4-1106-preview"),
+    "gemini-pro": LMConfig(provider="litellm", model="gemini-pro"),
 }
 
 # The details of the prompts - we incorporated the prompts with the dataset so we use the default which is just empty
