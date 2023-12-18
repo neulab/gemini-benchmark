@@ -22,14 +22,20 @@ from litellm import acompletion
 import yaml
 import click
 import sys
+import time
 from litellm import Router
 sys.path.append('../utils')
 from reasoning_utils import * 
+import litellm
+litellm.vertex_project = "##" # Your Project ID
+litellm.vertex_location = "##"  # proj location
+
+
+
 
 
 os.environ["OPENAI_API_KEY"] = "##"
 os.environ["TOGETHERAI_API_KEY"] = "##"
-
 
 
 class GSMDataset(th.utils.data.Dataset):
@@ -73,7 +79,7 @@ def main(task, model, lr, rr):
         test_examples = get_examples_svamp("mawpsmultiarith", lr=lr, rr=rr)
     
     test_dset = GSMDataset(test_examples)
-    test_loader = DataLoader(test_dset, batch_size=8, shuffle=True)
+    test_loader = DataLoader(test_dset, batch_size=1, shuffle=False)
     router = set_router(model)
 
     if not os.path.exists(f'gemini-benchmark/outputs/{task}'):
@@ -89,28 +95,66 @@ def main(task, model, lr, rr):
     for idx, (qid, qn, ans) in tqdm(enumerate(test_loader), total=len(test_loader)):
         
         mlist = []
-        for q in qn:
+        result_path = f'gemini-benchmark/outputs/{task}/{model}/all_jsons/{qid[0]}.json'
+        
+        if os.path.isfile(result_path):
+            continue
+        
+        for q, qi in zip(qn, qid):
             q_prompt = prompt.replace("{{question}}", "{question}").format(question=q)
             
             mlist.append([{"role": "system", "content": "Follow the given examples and answer the question."},
                           {"role": "user", "content": q_prompt}])
         
-        predictions = asyncio.run(
-            dispatch_openai_requests(
-                router=router,
-                messages_list=mlist,
-                model=model,
-                temperature=0.0,
-                max_tokens=512,
-                top_p=1.0,
-            )
-        )
+        
+        predictions = []
+        retry, timeout = 3, 1
+        for msg in mlist:
+            retries = 0
+            response = "-1000000"
+            while retries < retry:
+                try:
+                    response = litellm.completion(model=model, messages=msg)
+                    time.sleep(1)
+                    break
+                except Exception as e: 
+                    print('Error: ', e) 
+                    if 'The response was blocked' in str(e):
+                        response = '#######'
+                        break
+                    print(f'Sleeping for {timeout} seconds')
+                    time.sleep(timeout)
+                    timeout += 1
+                    retries += 1
+                
+            if response == "-1000000":
+                response = litellm.completion(model=model, messages=msg)
+            if response == '#######':
+                response = "-1000000"
+              
+            predictions.append(response)
+
+          
+        # predictions = asyncio.run(
+        #     dispatch_openai_requests(
+        #         router=router,
+        #         messages_list=mlist,
+        #         model=model,
+        #         temperature=0.0,
+        #         max_tokens=512,
+        #         top_p=1.0,
+        #     )
+        # )
 
         for i, (response, qi, q, a) in enumerate(zip(predictions, qid, qn, ans)):
             al = {'qid': qi.item(),
                   'prompt': prompt.replace("{{question}}", "{question}").format(question=q),
-                  'question': q,
-                  'generated_text': response.choices[0].message.content}
+                  'question': q}
+            
+            if isinstance(response, str):
+                al['generated_text'] = response
+            else:
+                al['generated_text'] = response.choices[0].message.content
             
             if task == 'gsm8k': 
                 only_a = extract_answer(a)
