@@ -44,4 +44,4 @@ We have a script `eval_runs.py` that handles evaluation for BLEU, chrF, SLR and 
 ### Notebooks
 *langid_classifier.ipynb* - for classifying the langauge of the predictions
 
-*zeno_browser.ipynb* - This notebook shows how to use the Zeno library to analyze the results from our experiments.
+*visualization/translation_flores/zeno_upload.py* - This script shows how to upload results to the Zeno library and visualize them.
