@@ -9,29 +9,42 @@ from tqdm import tqdm
 import json, argparse
 import os, random
 import asyncio
+import litellm
 
 
-async def get_response(
-    prompt: str,
-    sample: Dict,
-    verbose: bool = False,
-):
-    if verbose:
-        print(f"[prompt] \n{prompt}\n------")
-    response = await acompletion(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "user", "content": prompt},
-        ],
-        # suffix=sample["suffix"],
-        max_tokens=args.max_tokens,
-        temperature=args.temperature,
-        top_p=args.top_p,
-        n=args.n,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        stop=["###"],
-    )
+async def get_response(prompt: str, model: str):
+    if "gpt" in model:
+        # gpt
+        response = await acompletion(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Complete the given code with no more explanation. Remember that there is a 4-space indent before the first line of your generated code.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=args.max_tokens,
+            temperature=args.temperature,
+            top_p=args.top_p,
+            n=args.n,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+            stop=["###"],
+        )
+    else:
+        # gemini does not support too many customized parameters now
+        response = await acompletion(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Complete the given code with no more explanation. Remember that there is a 4-space indent before the first line of your generated code.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            max_retries=3,
+        )
     return response
 
 
@@ -48,7 +61,14 @@ def select_fewshot_examples(
 
 
 def main():
-    os.environ["OPENAI_API_KEY"] = args.openai_api_key
+    if "gpt" in args.model_name:
+        # gpt evaluation
+        os.environ["OPENAI_API_KEY"] = args.openai_api_key
+    else:
+        # gemini evaluation
+        litellm.vertex_project = ""  # Your Project ID
+        litellm.vertex_location = ""  # Your Project Location
+        litellm.drop_params = True
     # load source dataset
     dataset = load_testset(args.input_path)
 
@@ -57,10 +77,6 @@ def main():
     outputs_file = open(f"{args.output_path}_outputs.json", "a")
 
     for i, sample in tqdm(enumerate(dataset)):
-        if "suffix" in sample:
-            # current gpts cannot handle suffix
-            if sample["suffix"] != "":
-                continue
         # create model input -- prompt
         examples = select_fewshot_examples(
             sample=sample,
@@ -74,15 +90,19 @@ def main():
             num_tests=args.num_tests,
             function_name=args.function_name,
         )
+        if args.strip_prompt:
+            prompt = prompt.rstrip()
 
         # collect code predictions
-        response = asyncio.run(
-            get_response(prompt=prompt, sample=sample, verbose=args.verbose)
-        )
-        predictions = [
-            response["choices"][i]["message"]["content"]
-            for i in range(len(response["choices"]))
-        ]
+        try:
+            response = asyncio.run(get_response(prompt, args.model_name))
+            predictions = [
+                response["choices"][i]["message"]["content"].strip()
+                for i in range(len(response["choices"]))
+            ]
+        except:
+            # sometimes google will deny the response for specific prompts
+            predictions = [""]
 
         # simple cleansing of predicions
         valid_predictions = get_valid_solutions(predictions, deduplicate=False)
@@ -145,7 +165,7 @@ if __name__ == "__main__":
         "--model_name",
         type=str,
         default="gpt-3.5-turbo",
-        choices=["gpt-3.5-turbo"],
+        choices=["gpt-3.5-turbo", "gpt-4-1106-preview", "gemini-pro"],
     )
     parser.add_argument("--max_tokens", type=int, default=200)
     parser.add_argument("--temperature", type=float, default=0.8)
@@ -183,6 +203,11 @@ if __name__ == "__main__":
         default="random",
         choices=["random"],
         help="Method to select the prefix examples for prompt creation.",
+    )
+    parser.add_argument(
+        "--strip_prompt",
+        action="store_true",
+        help="Whether to strip the trailing whitespaces in the prompt. ",
     )
 
     parser.add_argument("--openai_api_key", type=str, default=None)

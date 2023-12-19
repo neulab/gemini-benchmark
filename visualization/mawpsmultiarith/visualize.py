@@ -84,10 +84,3 @@ for model in models:
     if model == 'gpt-4-1106-preview':
         model = 'gpt-4-turbo'
     project.upload_system(output_df, name=model, id_column="qid", output_column="output")
-
-
-# In[ ]:
-
-
-
-
