@@ -3,6 +3,7 @@ from tqdm import tqdm
 from utils import *
 import pandas as pd
 import asyncio
+import litellm
 import json
 
 # parse arguments
@@ -10,9 +11,9 @@ import argparse
 import os
 
 
-async def get_response(prompt):
+async def get_response(prompt: str, model: str):
     response = await acompletion(
-        model="gpt-3.5-turbo",
+        model=model,
         messages=[
             {
                 "role": "system",
@@ -26,7 +27,14 @@ async def get_response(prompt):
 
 
 def main(args, tasks=TASKS):
-    os.environ["OPENAI_API_KEY"] = args.openai_api_key
+    if "gpt" in args.model_name:
+        # gpt evaluation
+        os.environ["OPENAI_API_KEY"] = args.openai_api_key
+    else:
+        # gemini evaluation
+        litellm.vertex_project = ""  # Your Project ID
+        litellm.vertex_location = ""  # Your Project Location
+        litellm.drop_params = True
     if args.cot:
         mmlu_cot_prompt = json.load(open("data/mmlu-cot.json"))
     all_acc = 0
@@ -41,7 +49,7 @@ def main(args, tasks=TASKS):
             os.path.join("data", "dev", task + "_dev.csv"), header=None
         )[: args.num_examples]
         test_df = pd.read_csv(
-            os.path.join("data", "val", task + "_val.csv"), header=None
+            os.path.join("data", "test", task + "_test.csv"), header=None
         )
         for i in tqdm(range(test_df.shape[0])):
             if args.cot:
@@ -54,7 +62,7 @@ def main(args, tasks=TASKS):
                 prompt = mmlu_cot_prompt[task] + "\n\n" + q
                 label = test_df.iloc[i, test_df.shape[1] - 1]
 
-                response = asyncio.run(get_response(prompt))
+                response = asyncio.run(get_response(prompt, args.model_name))
                 ans_model = response["choices"][0]["message"]["content"]
                 ans_, residual = extract_ans(ans_model)
 
@@ -69,7 +77,7 @@ def main(args, tasks=TASKS):
                 prompt = train_prompt + prompt_end
                 label = test_df.iloc[i, test_df.shape[1] - 1]
 
-                response = asyncio.run(get_response(prompt))
+                response = asyncio.run(get_response(prompt, args.model_name))
                 # 0 means the answer character [A, B, C, D] (sometimes model will output more)
                 ans_model = response["choices"][0]["message"]["content"][0]
 
@@ -83,6 +91,7 @@ def main(args, tasks=TASKS):
                         "correct": correct,
                         "prediction": ans_model,
                         "label": label,
+                        "response": response["choices"][0]["message"]["content"],
                         "question": test_df.iloc[i, 0],
                         "A": test_df.iloc[i, 1],
                         "B": test_df.iloc[i, 2],
@@ -110,7 +119,7 @@ if __name__ == "__main__":
         "--model_name",
         type=str,
         default="gpt-3.5-turbo",
-        choices=["gpt-3.5-turbo"],
+        choices=["gpt-3.5-turbo", "gpt-4-1106-preview", "gemini-pro"],
     )
     parser.add_argument("--cot", action="store_true")
     parser.add_argument(

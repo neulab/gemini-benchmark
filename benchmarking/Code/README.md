@@ -5,6 +5,7 @@ This code is mainly built upon [ODEX](https://github.com/zorazrw/odex) and [Lite
 ## How to evaluate ODEX (default)
 
 ```bash
+pip install -r requirements.txt
 python run_code.py
 ```
 
