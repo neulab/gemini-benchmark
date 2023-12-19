@@ -38,6 +38,18 @@ This section has instructions on how to use our codebase to run the experiments.
 - Your source folders (created by `create_data.py` will  be named [prompt]/[lang]/ with the `inputs` and `refs` subdirectories inside.
 - run.sh: This is the bash script that launches main.py. Run `bash run.sh`
 
+### Querying Gemini
+We use litellm (1.14.10) to query Gemini Pro. Gemini Pro can be accessed via [Vertex AI](https://cloud.google.com/vertex-ai). 
+
+Once you set up an account, please update
+```commandline
+litellm.vertex_project = "your-project-id"
+litellm.vertex_location = "your-location"
+```
+
+The model configuration and sampling parameters can then be specified in `config.py`.
+
+
 ### Evaluation
 We have a script `eval_runs.py` that handles evaluation for BLEU, chrF, SLR and TER.
 `python eval_runs.py --results_dir [folder] --langs_file [a file with line separated languages to be evaluated]  --tokenizer [tokenizer-this is optional]`
