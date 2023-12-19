@@ -27,7 +27,9 @@ sys.path.append('../utils')
 from reasoning_utils import * 
 
 
-os.environ["OPENAI_API_KEY"] = "######"
+os.environ["OPENAI_API_KEY"] = "##"
+os.environ["TOGETHERAI_API_KEY"] = "##"
+
 
 
 class GSMDataset(th.utils.data.Dataset):
@@ -51,7 +53,9 @@ class GSMDataset(th.utils.data.Dataset):
 @click.command()
 @click.option("--task", default='gsm8k', type=str)
 @click.option("--model", default='gpt-3.5-turbo', type=str)
-def main(task, model):
+@click.option("--lr", default=0, type=int)
+@click.option("--rr", default=-1, type=int)
+def main(task, model, lr, rr):
     
     with open("gsm8k-cot.yaml", 'r') as stream:
         data_loaded = yaml.safe_load(stream)
@@ -60,31 +64,43 @@ def main(task, model):
     question_answer_list = []
     
     if task == 'gsm8k':
-        test_examples = get_examples_gsm8k("gsm8k", N=10)
+        test_examples = get_examples_gsm8k("gsm8k", lr=lr, rr=rr)
     elif task == 'svamp':
-        test_examples = get_examples_svamp("svamp", N=10)
+        test_examples = get_examples_svamp("svamp", lr=lr, rr=rr)
     elif task == 'asdiv':
-        test_examples = get_examples_svamp("asdiv", N=10)
+        test_examples = get_examples_svamp("asdiv", lr=lr, rr=rr)
     elif task == 'mawpsmultiarith':
-        test_examples = get_examples_svamp("mawpsmultiarith", N=10)
+        test_examples = get_examples_svamp("mawpsmultiarith", lr=lr, rr=rr)
     
     test_dset = GSMDataset(test_examples)
     test_loader = DataLoader(test_dset, batch_size=8, shuffle=True)
+    router = set_router(model)
 
+    if not os.path.exists(f'gemini-benchmark/outputs/{task}'):
+        os.makedirs(f'gemini-benchmark/outputs/{task}')
+    
+    if not os.path.exists(f'gemini-benchmark/outputs/{task}/{model}'):
+        os.makedirs(f'gemini-benchmark/outputs/{task}/{model}')
+        
+    if not os.path.exists(f'gemini-benchmark/outputs/{task}/{model}/all_jsons'):
+        os.makedirs(f'gemini-benchmark/outputs/{task}/{model}/all_jsons')
+    
+    
     for idx, (qid, qn, ans) in tqdm(enumerate(test_loader), total=len(test_loader)):
         
         mlist = []
         for q in qn:
             q_prompt = prompt.replace("{{question}}", "{question}").format(question=q)
             
-            mlist.append([{"role": "system", "content": "You are a helpful math assistant."},
+            mlist.append([{"role": "system", "content": "Follow the given examples and answer the question."},
                           {"role": "user", "content": q_prompt}])
         
         predictions = asyncio.run(
             dispatch_openai_requests(
+                router=router,
                 messages_list=mlist,
                 model=model,
-                temperature=0.3,
+                temperature=0.0,
                 max_tokens=512,
                 top_p=1.0,
             )
@@ -105,12 +121,17 @@ def main(task, model):
                 
             question_answer_list.append(al)
             
-    if not os.path.exists(f'/home/sakter/courses/Fall_2023/openai/outputs/{task}'):
-        os.makedirs(f'/home/sakter/courses/Fall_2023/openai/outputs/{task}')    
+            result_path = f'gemini-benchmark/outputs/{task}/{model}/all_jsons/{qi}.json'
+            
+            if os.path.isfile(result_path):
+                continue
+                
+            with open(result_path, 'w') as fp:
+                json.dump(al, fp)
     
     question_answer_list = return_predicted_answer(question_answer_list)
     
-    with open(f'/home/sakter/courses/Fall_2023/openai/outputs/{task}/output.jsonl', 'w') as f:
+    with open(f'gemini-benchmark/outputs/{task}/{model}/output.jsonl', 'w') as f:
         for d in question_answer_list:
             json.dump(d, f)
             f.write('\n')

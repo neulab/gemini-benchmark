@@ -21,11 +21,15 @@ from torch.utils.data import DataLoader
 from litellm import acompletion
 import yaml
 import click
+import sys
 sys.path.append('../utils')
 from reasoning_utils import * 
+import litellm
 
-os.environ["OPENAI_API_KEY"] = "#######"
 
+os.environ["OPENAI_API_KEY"] = "##"
+os.environ["TOGETHERAI_API_KEY"] = "##"
+os.environ["HF_TOKEN"] = "##"
 
 class BBHDataset(th.utils.data.Dataset):
     def __init__(self, examples):
@@ -49,54 +53,92 @@ class BBHDataset(th.utils.data.Dataset):
 @click.command()
 @click.option("--task", default='object_counting', type=str)
 @click.option("--model", default='gpt-3.5-turbo', type=str)
-def main(task, model):
+@click.option("--lr", default=0, type=int)
+@click.option("--rr", default=-1, type=int)
+def main(task, model, lr, rr):
     
-    with open(f"lm-evaluation-harness/lm_eval/tasks/bbh/cot_fewshot/{task}.yaml", 'r') as stream:
-        data_loaded = yaml.safe_load(stream)
-    prompt = data_loaded['doc_to_text']
+    if task == 'all_tasks':
+        all_tasks = TASKS
+    else:
+        all_tasks = [task]
     
-    question_answer_list = []
     
-    test_examples = get_examples(task, N=10)
+    results_all_tasks = []
+    router = set_router(model)
     
-    test_dset = BBHDataset(test_examples)
-    test_loader = DataLoader(test_dset, batch_size=8, shuffle=True)
+    for task in all_tasks:
+        print('Starting task: ', task)
+    
+        with open(f"lm-evaluation-harness/lm_eval/tasks/bbh/cot_fewshot/{task}.yaml", 'r') as stream:
+            data_loaded = yaml.safe_load(stream)
+        prompt = data_loaded['doc_to_text']
 
-    for idx, (qid, qn, ans) in tqdm(enumerate(test_loader), total=len(test_loader)):
+        question_answer_list = []
+
+        test_examples = get_examples(task, model, lr=lr, rr=rr)
+
+        test_dset = BBHDataset(test_examples)
+        test_loader = DataLoader(test_dset, batch_size=8, shuffle=False)
         
-        mlist = []
-        for q in qn:
-            q_prompt = prompt.replace("{{input}}", "{input}").format(input=q)
+        
+        if not os.path.exists(f'gemini-benchmark/outputs/bbh/{model}'):
+            os.makedirs(f'gemini-benchmark/outputs/bbh/{model}')
+        
+        if not os.path.exists(f'gemini-benchmark/outputs/bbh/{model}/{task}'):
+            os.makedirs(f'gemini-benchmark/outputs/bbh/{model}/{task}')
             
-            mlist.append([{"role": "system", "content": "You are a helpful assistant."},
-                          {"role": "user", "content": q_prompt}])
+        if not os.path.exists(f'gemini-benchmark/outputs/bbh/{model}/{task}/all_jsons'):
+            os.makedirs(f'gemini-benchmark/outputs/bbh/{model}/{task}/all_jsons')
+            
         
-        predictions = asyncio.run(
-            dispatch_openai_requests(
-                messages_list=mlist,
-                model=model,
-                temperature=0.3,
-                max_tokens=512,
-                top_p=1.0,
+        for idx, (qid, qn, ans) in tqdm(enumerate(test_loader), total=len(test_loader)):
+
+            mlist = []
+            for q in qn:
+                if task == 'dyck_languages': q_prompt = prompt.replace("{{input}}", q)
+                else: q_prompt = prompt.replace("{{input}}", "{input}").format(input=q)
+                 
+
+                mlist.append([{"role": "system", "content": "Follow the given examples and answer the question."},
+                              {"role": "user", "content": q_prompt}])
+
+            predictions = asyncio.run(
+                dispatch_openai_requests(
+                    router=router,
+                    messages_list=mlist,
+                    model=model,
+                    temperature=0.0,
+                    max_tokens=512,
+                    top_p=1.0,
+                )
             )
-        )
 
-        for i, (response, qi, q, a) in enumerate(zip(predictions, qid, qn, ans)):
-            question_answer_list.append({'qid': qi.item(),
-                                         'prompt': prompt.replace("{{input}}", "{input}").format(input=q),
-                                         'question': q,
-                                         'answer': a,
-                                         'generated_text': response.choices[0].message.content})
+            for i, (response, qi, q, a) in enumerate(zip(predictions, qid, qn, ans)):
+                if task == 'dyck_languages': q_prompt = prompt.replace("{{input}}", q)
+                else: q_prompt = prompt.replace("{{input}}", "{input}").format(input=q)
+                al = {'task': task,
+                     'qid': qi.item(),
+                     'prompt': q_prompt,
+                     'question': q,
+                     'answer': a,
+                     'generated_text': response.choices[0].message.content}
+                question_answer_list.append(al)
+                
+                result_path = f'gemini-benchmark/outputs/bbh/{model}/{task}/all_jsons/{qi}.json'
             
-    if not os.path.exists(f'/home/sakter/courses/Fall_2023/openai/outputs/bbh/{task}'):
-        os.makedirs(f'/home/sakter/courses/Fall_2023/openai/outputs/bbh/{task}')
-    
-    question_answer_list = get_answer(question_answer_list)
-    
-    with open(f'/home/sakter/courses/Fall_2023/openai/outputs/bbh/{task}/output.jsonl', 'w') as f:
-        for d in question_answer_list:
-            json.dump(d, f)
-            f.write('\n')
+                if os.path.isfile(result_path):
+                    continue
+
+                with open(result_path, 'w') as fp:
+                    json.dump(al, fp)
+                    
+        question_answer_list = get_answer(question_answer_list)
+        results_all_tasks.extend(question_answer_list)
+
+        with open(f'gemini-benchmark/outputs/bbh/{model}/{task}/output.jsonl', 'w') as f:
+            for d in question_answer_list:
+                json.dump(d, f)
+                f.write('\n')
         
     return
 
