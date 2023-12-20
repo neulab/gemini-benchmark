@@ -32,7 +32,7 @@ The overall results table can be found below:
 | **Web Agents**                | **WebArena**        | 7.09       | 8.75          | **15.16**   | 1.37    |
 
 
-You can find more details on results from each task, and comprehensive at each of the below links:
+You can find more details on results from each task, and comprehensive analysis at each of the below links:
 
 - [Knowledge-based QA](https://hub.zenoml.com/report/2674/Gemini%20MMLU) (MMLU)
 - [Reasoning](https://hub.zenoml.com/report/2575/Gemini%20BBH) (BIG-Bench Hard)
