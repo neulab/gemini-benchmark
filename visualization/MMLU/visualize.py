@@ -24,7 +24,7 @@ zeno_client = ZenoClient(os.environ.get("ZENO_API_KEY"))
 
 project = zeno_client.create_project(
     name="Gemini Evaluation - MMLU",
-    description="Evaluation of Gemini-Pro, GPT-4, and GPT-3.5 on MMLU dataset",
+    description="Evaluation of Gemini-Pro, GPT-4, GPT-3.5, and Mixtral on MMLU dataset",
     view={
         "data": {"type": "text"},
         "label": {"type": "text"},
