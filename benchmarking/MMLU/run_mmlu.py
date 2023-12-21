@@ -12,17 +12,48 @@ import os
 
 
 async def get_response(prompt: str, model: str):
-    response = await acompletion(
-        model=model,
-        messages=[
-            {
-                "role": "system",
-                "content": "Follow the given examples and answer the question.",
-            },
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0,
-    )
+    if "gemini" in model:
+        response = await acompletion(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Follow the given examples and answer the question.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0,
+            safety_settings=[
+                {
+                    "category": "HARM_CATEGORY_HARASSMENT",
+                    "threshold": "BLOCK_NONE",
+                },
+                {
+                    "category": "HARM_CATEGORY_HATE_SPEECH",
+                    "threshold": "BLOCK_NONE",
+                },
+                {
+                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    "threshold": "BLOCK_NONE",
+                },
+                {
+                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                    "threshold": "BLOCK_NONE",
+                },
+            ],
+        )
+    else:
+        response = await acompletion(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Follow the given examples and answer the question.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0,
+        )
     return response
 
 
@@ -30,11 +61,13 @@ def main(args, tasks=TASKS):
     if "gpt" in args.model_name:
         # gpt evaluation
         os.environ["OPENAI_API_KEY"] = args.openai_api_key
-    else:
+    elif "gemini" in args.model_name:
         # gemini evaluation
         litellm.vertex_project = ""  # Your Project ID
         litellm.vertex_location = ""  # Your Project Location
         litellm.drop_params = True
+    else:
+        args.model_name = "together_ai/mistralai/Mixtral-8x7B-Instruct-v0.1"
     if args.cot:
         mmlu_cot_prompt = json.load(open("data/mmlu-cot.json"))
     all_acc = 0
@@ -119,7 +152,7 @@ if __name__ == "__main__":
         "--model_name",
         type=str,
         default="gpt-3.5-turbo",
-        choices=["gpt-3.5-turbo", "gpt-4-1106-preview", "gemini-pro"],
+        choices=["gpt-3.5-turbo", "gpt-4-1106-preview", "gemini-pro", "mixtral"],
     )
     parser.add_argument("--cot", action="store_true")
     parser.add_argument(

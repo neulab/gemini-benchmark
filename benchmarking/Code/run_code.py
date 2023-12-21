@@ -13,38 +13,22 @@ import litellm
 
 
 async def get_response(prompt: str, model: str):
-    if "gpt" in model:
-        # gpt
-        response = await acompletion(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Complete the given code with no more explanation. Remember that there is a 4-space indent before the first line of your generated code.",
-                },
-                {"role": "user", "content": prompt},
-            ],
-            max_tokens=args.max_tokens,
-            temperature=args.temperature,
-            top_p=args.top_p,
-            n=args.n,
-            frequency_penalty=0.0,
-            presence_penalty=0.0,
-            stop=["###"],
-        )
-    else:
-        # gemini does not support too many customized parameters now
-        response = await acompletion(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Complete the given code with no more explanation. Remember that there is a 4-space indent before the first line of your generated code.",
-                },
-                {"role": "user", "content": prompt},
-            ],
-            max_retries=3,
-        )
+    response = await acompletion(
+        model=model,
+        messages=[
+            {
+                "role": "system",
+                "content": "You are an expert Python programmer. You will be given a question (problem specification) and will generate a correct Python program that matches the specification and passes all tests. You will NOT return anything except for the program.",
+            },
+            {"role": "user", "content": prompt},
+        ],
+        temperature=args.temperature,
+        top_p=args.top_p,
+        n=args.n,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        stop=["###"],
+    )
     return response
 
 
@@ -64,10 +48,13 @@ def main():
     if "gpt" in args.model_name:
         # gpt evaluation
         os.environ["OPENAI_API_KEY"] = args.openai_api_key
-    else:
+    elif "gemini" in args.model_name:
         # gemini evaluation
         litellm.vertex_project = ""  # Your Project ID
         litellm.vertex_location = ""  # Your Project Location
+        litellm.drop_params = True
+    else:
+        args.model_name = "together_ai/mistralai/Mixtral-8x7B-Instruct-v0.1"
         litellm.drop_params = True
     # load source dataset
     dataset = load_testset(args.input_path)
@@ -165,7 +152,7 @@ if __name__ == "__main__":
         "--model_name",
         type=str,
         default="gpt-3.5-turbo",
-        choices=["gpt-3.5-turbo", "gpt-4-1106-preview", "gemini-pro"],
+        choices=["gpt-3.5-turbo", "gpt-4-1106-preview", "gemini-pro", "mixtral"],
     )
     parser.add_argument("--max_tokens", type=int, default=200)
     parser.add_argument("--temperature", type=float, default=0.8)

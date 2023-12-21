@@ -2,7 +2,7 @@
 
 from typing import List
 
-STOP_TOKEN = ["\nclass", "\ndef", "\n#", "\nif", "\nprint"]
+STOP_TOKEN = ["\nclass", "\ndef", "\n#", "\nif", "\nprint", "\n\n\n"]
 
 
 def clean_prediction(text: str) -> str:  # deprecated
@@ -20,7 +20,7 @@ class CodeProcessor:
     """Post-processor of generated code snippets."""
 
     def __init__(self, verbose: bool = False):
-        self.stop_tokens = ["\nclass", "\ndef", "\n#", "\nif", "\nprint"]
+        self.stop_tokens = ["\nclass", "\ndef", "\n#", "\nif", "\nprint", "\n\n\n"]
         self.verbose = verbose
 
     def check_case_validation(self, content: str) -> bool:

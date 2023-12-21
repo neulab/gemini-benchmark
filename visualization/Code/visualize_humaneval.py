@@ -25,7 +25,7 @@ zeno_client = ZenoClient(os.environ.get("ZENO_API_KEY"))
 
 project = zeno_client.create_project(
     name=f"Gemini Evaluation - {dataset}",
-    description=f"Evaluation of Gemini-Pro, GPT-4, and GPT-3.5 on {dataset} dataset",
+    description=f"Evaluation of Gemini-Pro, GPT-4, GPT-3.5, and Mixtral on {dataset} dataset",
     view={
         "data": {"type": "code"},
         "label": {"type": "code"},
