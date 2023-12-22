@@ -8,13 +8,10 @@ from typing import Dict, List
 from tqdm import tqdm
 import json, argparse
 import os, random
-import asyncio
 import litellm
 import traceback
 import vertexai
 import re
-from vertexai.preview.generative_models import GenerativeModel, Part, GenerationConfig
-from google.cloud.aiplatform_v1beta1.types import content as gapic_content_types
 
 
 def get_response(prompt: str, model: str):
