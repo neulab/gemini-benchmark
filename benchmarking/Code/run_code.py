@@ -3,31 +3,63 @@
 from utils import get_test_path, get_prediction_path, load_testset
 from prompt import create_fewshot_prompt_nl2code
 from verify import get_valid_solutions, wrap_check
-from litellm import acompletion
+from litellm import completion
 from typing import Dict, List
 from tqdm import tqdm
 import json, argparse
 import os, random
 import asyncio
 import litellm
+import traceback
 
 
-async def get_response(prompt: str, model: str):
-    response = await acompletion(
-        model=model,
-        messages=[
+def get_response(prompt: str, model: str):
+    # messages=[
+    #     {
+    #         "role": "system",
+    #         "content": "You are an expert Python programmer. You will be given a question (problem specification) and will generate a correct Python program that matches the specification and passes all tests. You will NOT return anything except for the program.",
+    #     },
+    #     {"role": "user", "content": prompt},
+    # ]
+    messages = [
+        {
+            "role": "system",
+            "content": "Write the following python3 function: \n",
+        },
+        {"role": "user", "content": prompt},
+    ]
+    extra_kwargs = {}
+    if "gemini" in model:
+        extra_kwargs["safety_settings"] = [
             {
-                "role": "system",
-                "content": "You are an expert Python programmer. You will be given a question (problem specification) and will generate a correct Python program that matches the specification and passes all tests. You will NOT return anything except for the program.",
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_NONE",
             },
-            {"role": "user", "content": prompt},
-        ],
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH",
+                "threshold": "BLOCK_NONE",
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_NONE",
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_NONE",
+            },
+        ]
+    response = completion(
+        model=model,
+        messages=messages,
         temperature=args.temperature,
         top_p=args.top_p,
         n=args.n,
         frequency_penalty=0.0,
         presence_penalty=0.0,
+        max_tokens=args.max_tokens,
         stop=["###"],
+        num_retries=3,
+        **extra_kwargs,        
     )
     return response
 
@@ -50,8 +82,8 @@ def main():
         os.environ["OPENAI_API_KEY"] = args.openai_api_key
     elif "gemini" in args.model_name:
         # gemini evaluation
-        litellm.vertex_project = ""  # Your Project ID
-        litellm.vertex_location = ""  # Your Project Location
+        litellm.vertex_project = args.vertex_project  # Your Project ID
+        litellm.vertex_location = args.vertex_location  # Your Project Location
         litellm.drop_params = True
     else:
         args.model_name = "together_ai/mistralai/Mixtral-8x7B-Instruct-v0.1"
@@ -82,12 +114,15 @@ def main():
 
         # collect code predictions
         try:
-            response = asyncio.run(get_response(prompt, args.model_name))
+            response = get_response(prompt, args.model_name)
             predictions = [
                 response["choices"][i]["message"]["content"].strip()
                 for i in range(len(response["choices"]))
             ]
         except:
+            print("--------- FAILED ---------")
+            print(f"[prompt]\n{prompt}\n[/prompt]")
+            traceback.print_exc()
             # sometimes google will deny the response for specific prompts
             predictions = [""]
 
@@ -154,9 +189,9 @@ if __name__ == "__main__":
         default="gpt-3.5-turbo",
         choices=["gpt-3.5-turbo", "gpt-4-1106-preview", "gemini-pro", "mixtral"],
     )
-    parser.add_argument("--max_tokens", type=int, default=200)
-    parser.add_argument("--temperature", type=float, default=0.8)
-    parser.add_argument("--top_p", type=float, default=0.95)
+    parser.add_argument("--max_tokens", type=int, default=512)
+    parser.add_argument("--temperature", type=float, default=0.0)
+    parser.add_argument("--top_p", type=float, default=1.0)
     parser.add_argument(
         "--n",
         type=int,
@@ -198,6 +233,8 @@ if __name__ == "__main__":
     )
 
     parser.add_argument("--openai_api_key", type=str, default=None)
+    parser.add_argument("--vertex_project", type=str, default=None)
+    parser.add_argument("--vertex_location", type=str, default=None)
     parser.add_argument("--verbose", action="store_true")
 
     args = parser.parse_args()
