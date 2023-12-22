@@ -71,6 +71,7 @@ model_configs = {
     "gpt-3.5-turbo": LMConfig(provider="openai_chat", model="gpt-3.5-turbo"),
     "gpt-4-turbo": LMConfig(provider="openai_chat", model="gpt-4-1106-preview"),
     "gemini-pro": LMConfig(provider="litellm", model="gemini-pro"),
+    "mixtral": LMConfig(provider="litellm", model="together_ai/mistralai/Mixtral-8x7B-Instruct-v0.1"),
 }
 
 # The details of the prompts - we incorporated the prompts with the dataset so we use the default which is just empty
