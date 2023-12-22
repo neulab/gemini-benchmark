@@ -10,26 +10,26 @@ In this paper, we do an in-depth exploration of [Google Gemini](https://blog.goo
 
 We perform this analysis over 10 datasets testing a variety of language abilities, including reasoning, answering knowledge-based questions, solving math problems, translating between languages, generating code, and acting as instruction-following agents. From this analysis, we find that (as of this writing on December 18th, 2023):
 
-- Gemini Pro achieves accuracy that is close but slightly inferior to the corresponding GPT 3.5 Turbo on all tasks that we benchmarked.
-- Gemini fails in mathematical reasoning with many digits, and is sensitive to multiple-choice answer ordering, aggressive content filtering, and others.
+- Gemini's Pro model achieved comparable but slightly inferior accuracy compared to the current version of OpenAI's GPT 3.5 Turbo for all English tasks, but superior ability to translate into other languages.
+- Gemini fails in mathematical reasoning with many digits, and is sensitive to multiple-choice answer ordering, and others.
 - Gemini demonstrates comparably high performance in areas such as generation into non-English languages, handling longer and more complex reasoning chains, and word sorting/rearrangement problems.
 
 The overall results table can be found below:
 
-| Task                          | Dataset             | Gemini Pro | GPT 3.5 Turbo | GPT 4 Turbo | Mixtral |
-|-------------------------------|---------------------|------------|---------------|-------------|---------|
-| **Knowledge-based QA**        | **MMLU (5-shot)**   | 64.12      | 67.75         | **80.48**   | -       |
-|                               | **MMLU (CoT)**      | 60.63      | 70.07         | **78.95**   | -       |
-| **Reasoning**                 | **BIG-Bench-Hard**  | 65.58      | 71.02         | **83.90**   | 41.76   |
-| **Mathematics**               | **GSM8K**           | 69.67      | 74.60         | **92.95**   | 58.45   |
-|                               | **SVAMP**           | 79.90      | 82.30         | **92.50**   | 73.20   |
-|                               | **ASDIV**           | 81.53      | 86.69         | **91.66**   | 74.95   |
-|                               | **MAWPS**           | 95.33      | **99.17**     | 98.50       | 89.83   |
-| **Code Generation**           | **HumanEval**       | 52.44      | 65.85         | **73.17**   | -       |
-|                               | **ODEX**            | 38.27      | 42.60         | **46.01**   | -       |
-| **Machine Translation**       | **FLORES (0-shot)** | 29.59      | 37.50         | **46.57**   | -       |
-|                               | **FLORES (5-shot)** | 29.00      | 38.08         | **48.60**   | -       |
-| **Web Agents**                | **WebArena**        | 7.09       | 8.75          | **15.16**   | 1.37    |
+| **Task**                     | **Dataset**             | Gemini Pro | GPT 3.5 Turbo | GPT 4 Turbo | Mixtral |
+|------------------------------|-------------------------|------------|---------------|-------------|---------|
+| **Knowledge-based QA**       | MMLU (5-shot)           | 65.22      | 67.75         | **80.48**   | *68.81* |
+|                              | MMLU (CoT)              | 62.09      | *70.07*       | **78.95**   | 59.57   |
+| **Reasoning**                | BIG-Bench-Hard          | 67.53      | *71.02*       | **83.90**   | 60.76   |
+| **Mathematics**              | GSM8K                   | 76.42      | *78.01*       | **92.72**   | 71.65   |
+|                              | SVAMP                   | 81.10      | *82.30*       | **92.60**   | 81.60   |
+|                              | ASDIV                   | 85.31      | *89.07*       | **92.75**   | 83.16   |
+|                              | MAWPS                   | 96.50      | *98.00*       | **98.67**   | 96.00   |
+| **Code Generation**          | HumanEval               | 59.76      | *74.39*       | **76.83**   | 45.12   |
+|                              | ODEX                    | 39.86      | **52.62**     | *45.79*     | 40.55   |
+| **Machine Translation**      | FLORES (5-shot) Unblocked| *56.14*   | 55.78         | **57.15**   | 44.27   |
+|                              | FLORES (5-shot) All     | 22.83      | *43.12*       | **51.63**   | 33.45   |
+| **Web Agents**               | WebArena                | 7.12       | *8.87*        | **14.90**   | 1.39    |
 
 
 You can find more details on results from each task, and comprehensive analysis at each of the below links:
