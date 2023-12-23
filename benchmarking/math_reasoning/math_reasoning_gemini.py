@@ -18,9 +18,10 @@ import click
 import sys
 import time
 from litellm import Router
+from prompts import * 
 sys.path.append('../utils')
 from reasoning_utils import * 
-from prompts import * 
+
 import litellm
 litellm.vertex_project = "####" # Your Project ID
 litellm.vertex_location = "####"  # proj location
