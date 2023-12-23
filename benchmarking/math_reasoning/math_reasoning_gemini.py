@@ -1,9 +1,3 @@
-# NOTE:
-# You can find an updated, more robust and feature-rich implementation
-# in Zeno Build
-# - Zeno Build: https://github.com/zeno-ml/zeno-build/
-# - Implementation: https://github.com/zeno-ml/zeno-build/blob/main/zeno_build/models/providers/openai_utils.py
-
 import openai
 import asyncio
 from typing import Any
@@ -26,16 +20,13 @@ import time
 from litellm import Router
 sys.path.append('../utils')
 from reasoning_utils import * 
+from prompts import * 
 import litellm
-litellm.vertex_project = "##" # Your Project ID
-litellm.vertex_location = "##"  # proj location
+litellm.vertex_project = "####" # Your Project ID
+litellm.vertex_location = "####"  # proj location
 
-
-
-
-
-os.environ["OPENAI_API_KEY"] = "##"
-os.environ["TOGETHERAI_API_KEY"] = "##"
+os.environ["OPENAI_API_KEY"] = "OPENAI_API_KEY"
+os.environ["TOGETHERAI_API_KEY"] = "TOGETHERAI_API_KEY"
 
 
 class GSMDataset(th.utils.data.Dataset):
@@ -63,9 +54,9 @@ class GSMDataset(th.utils.data.Dataset):
 @click.option("--rr", default=-1, type=int)
 def main(task, model, lr, rr):
     
-    with open("gsm8k-cot.yaml", 'r') as stream:
-        data_loaded = yaml.safe_load(stream)
-    prompt = data_loaded['doc_to_text']
+    # with open("gsm8k-cot.yaml", 'r') as stream:
+    #     data_loaded = yaml.safe_load(stream)
+    # prompt = data_loaded['doc_to_text']
     
     question_answer_list = []
     
@@ -94,61 +85,23 @@ def main(task, model, lr, rr):
     
     for idx, (qid, qn, ans) in tqdm(enumerate(test_loader), total=len(test_loader)):
         
-        mlist = []
         result_path = f'gemini-benchmark/outputs/{task}/{model}/all_jsons/{qid[0]}.json'
         
         if os.path.isfile(result_path):
             continue
         
-        for q, qi in zip(qn, qid):
-            q_prompt = prompt.replace("{{question}}", "{question}").format(question=q)
-            
-            mlist.append([{"role": "system", "content": "Follow the given examples and answer the question."},
-                          {"role": "user", "content": q_prompt}])
-        
-        
         predictions = []
-        retry, timeout = 3, 1
-        for msg in mlist:
-            retries = 0
-            response = "-1000000"
-            while retries < retry:
-                try:
-                    response = litellm.completion(model=model, messages=msg)
-                    time.sleep(1)
-                    break
-                except Exception as e: 
-                    print('Error: ', e) 
-                    if 'The response was blocked' in str(e):
-                        response = '#######'
-                        break
-                    print(f'Sleeping for {timeout} seconds')
-                    time.sleep(timeout)
-                    timeout += 1
-                    retries += 1
-                
-            if response == "-1000000":
-                response = litellm.completion(model=model, messages=msg)
-            if response == '#######':
-                response = "-1000000"
-              
+        for q, qi in zip(qn, qid):
+            # q_prompt = prompt.replace("{{question}}", "{question}").format(question=q)
+            q_prompt = (PROMPT + '\n' + TEMPLATE.format(question=q))
+            response = get_response(q_prompt)
             predictions.append(response)
-
-          
-        # predictions = asyncio.run(
-        #     dispatch_openai_requests(
-        #         router=router,
-        #         messages_list=mlist,
-        #         model=model,
-        #         temperature=0.0,
-        #         max_tokens=512,
-        #         top_p=1.0,
-        #     )
-        # )
+        
 
         for i, (response, qi, q, a) in enumerate(zip(predictions, qid, qn, ans)):
             al = {'qid': qi.item(),
-                  'prompt': prompt.replace("{{question}}", "{question}").format(question=q),
+                  # 'prompt': prompt.replace("{{question}}", "{question}").format(question=q),
+                  'prompt': (PROMPT + '\n' + TEMPLATE.format(question=q)),
                   'question': q}
             
             if isinstance(response, str):
