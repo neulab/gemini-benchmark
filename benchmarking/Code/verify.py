@@ -5,12 +5,12 @@ from typing import Dict, List
 from processor import CodeProcessor
 from prompt import get_entry_point
 
-from datasets import load_metric
+import evaluate
 
 from prompt import add_indent
 
 # bleu_eval_metric = load_metric("bleu")
-code_eval_metric = load_metric("code_eval")
+code_eval_metric = evaluate.load("code_eval")
 # os.environ["HF_ALLOW_CODE_EVAL"] = "0"
 os.environ["HF_ALLOW_CODE_EVAL"] = "1"
 

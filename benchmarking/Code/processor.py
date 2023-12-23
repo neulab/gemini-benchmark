@@ -2,7 +2,7 @@
 
 from typing import List
 
-STOP_TOKEN = ["\nclass", "\ndef", "\n#", "\nif", "\nprint"]
+STOP_TOKEN = ["\nclass", "\ndef", "\n#", "\nif", "\nprint", "\n\n\n"]
 
 
 def clean_prediction(text: str) -> str:  # deprecated
@@ -20,7 +20,7 @@ class CodeProcessor:
     """Post-processor of generated code snippets."""
 
     def __init__(self, verbose: bool = False):
-        self.stop_tokens = ["\nclass", "\ndef", "\n#", "\nif", "\nprint"]
+        self.stop_tokens = ["\nclass", "\ndef", "\n#", "\nif", "\nprint", "\n\n\n"]
         self.verbose = verbose
 
     def check_case_validation(self, content: str) -> bool:
@@ -38,6 +38,21 @@ class CodeProcessor:
         except:
             return False
 
+    def extract_after_first_def_newline(self, content: str) -> str:
+        import re
+
+        pattern = r"def .*?\n"
+        match = re.search(pattern, content)
+
+        if match:
+            start_index = match.end()
+            return content[start_index:].strip()
+
+        return content
+
+    def remove_code_block(self, content: str) -> str:
+        return content.replace("```python", "").replace("```", "").strip()
+
     def truncate(self, content: str) -> str:
         for identifier in self.stop_tokens:
             if identifier in content:
@@ -46,7 +61,9 @@ class CodeProcessor:
 
     def code_extract(self, content: str) -> str:
         """Extract generated code solution."""
-        return self.truncate(content)
+        return self.truncate(
+            self.extract_after_first_def_newline(self.remove_code_block(content))
+        )
 
 
 class TestProcessor:
