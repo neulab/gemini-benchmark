@@ -8,7 +8,6 @@ import pandas as pd
 import csv
 import os
 import evaluate
-
 from zeno_client import ZenoClient, ZenoMetric
 
 dotenv.load_dotenv("../.env", override=True)
@@ -47,12 +46,10 @@ for trg_lang in trg_langs:
 df_ref = pd.DataFrame(
     {"source": src_data, "target": trg_data, "trg_lang": trg_lang_data, "src_len": src_lens, "tgt_len": tgt_lens,
      "lang_script": lang_families})
-
 df_ref["id"] = df_ref.index
 
 # Upload reference data to Zeno
 project = client.create_project(
-
     name="Flores Translation Evaluation",
     view="text-classification",
     metrics=[ZenoMetric(name="CHRF", type="mean", columns=["chrf_score"])]
@@ -70,14 +67,12 @@ system_outputs_dir = '~/gemini/gpt_mt_benchmark/exp_outputs_tsv-gemini'
 chrf_evaluator = evaluate.load("chrf")
 
 
-
 # Function to load predictions from TSV
 def load_predictions_from_tsv(filename):
     with open(filename, "r") as f:
         reader = csv.reader(f, delimiter="\t")
         next(reader)  # Skip header
         return [row[2] for row in reader]
-
 
 
 def calculate_chrf(predictions, references, trg_lang):
@@ -109,7 +104,6 @@ for system_name in os.listdir(system_outputs_dir):
     system_path = os.path.join(system_outputs_dir, system_name)
     df_system_all_langs = pd.DataFrame()
     for trg_lang in trg_langs:
-
 
         if not os.path.isdir(system_path):
             continue
@@ -165,4 +159,3 @@ for system_name in os.listdir(system_outputs_dir):
     else:
         raise ValueError("No dir found")
     project.upload_system(df_system_all_langs, name=upload_system_name, id_column="id", output_column="output")
-

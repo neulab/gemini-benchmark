@@ -23,6 +23,7 @@ from flores200_utils import *
 
 os.environ["OPENAI_API_KEY"] = "####"
 os.environ['INSPIREDCO_API_KEY'] = ""
+os.environ["TOGETHERAI_API_KEY"] = ""
 
 
 def chatbot_main(
