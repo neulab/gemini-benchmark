@@ -1,1 +1,0 @@
-{"context_length": -1, "dataset_preset": "local-fra", "max_tokens": 500, "model_preset": "mixtral", "prompt_preset": "tt-def", "temperature": 0.3, "top_p": 1.0}
