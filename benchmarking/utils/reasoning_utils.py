@@ -1,6 +1,6 @@
 import openai
 import asyncio
-from typing import Any
+from typing import Any, Callable, Iterable, Match, Optional, Pattern, Protocol, Sequence, Union
 import base64
 import requests
 from io import BytesIO
@@ -18,18 +18,25 @@ import click
 from litellm import Router
 import litellm
 import time
+
 # litellm.set_verbose = True
 
 
 os.environ["OPENAI_API_KEY"] = "##"
 os.environ["TOGETHERAI_API_KEY"] = "##"
 os.environ["HF_TOKEN"] = "##"
+API_URL = "https://api-inference.huggingface.co/models/DiscoResearch/DiscoLM-mixtral-8x7b-v2"
+
+ANS_RE = re.compile(r"#### (\-?[0-9\.\,]+)")
+INVALID_ANS = "[invalid]"
+PATTERN = r"(?:\(|\s)([A-Z])\.?(?:\)|\s|$)"
+
 
 def set_router(model):
     
-    if model == 'mixtral':
-        model="together_ai/DiscoResearch/DiscoLM-mixtral-8x7b-v2"
-        # model = "huggingface/DiscoResearch/DiscoLM-mixtral-8x7b-v2"
+    if model == "mixtral":
+        model = "together_ai/mistralai/Mixtral-8x7B-Instruct-v0.1"
+        
     
     model_list = [{
         "model_name": model, 
@@ -40,10 +47,6 @@ def set_router(model):
 
     router = Router(model_list=model_list)
     return router
-
-ANS_RE = re.compile(r"#### (\-?[0-9\.\,]+)")
-INVALID_ANS = "[invalid]"
-PATTERN = r"(?:\(|\s)([A-Z])\.?(?:\)|\s|$)"
 
 
 TASKS = [
@@ -117,10 +120,8 @@ async def dispatch_openai_requests(
     Returns:
         List of responses from OpenAI API.
     """
-    if model == 'mixtral':
-        model="together_ai/DiscoResearch/DiscoLM-mixtral-8x7b-v2"
-        # model = "huggingface/DiscoResearch/DiscoLM-mixtral-8x7b-v2"
-        # top_p = 0.9
+    if model == "mixtral":
+        model = "together_ai/mistralai/Mixtral-8x7B-Instruct-v0.1"
         
     async_responses = [
         await router.acompletion(
@@ -146,6 +147,8 @@ def get_examples_gsm8k(split, lr=0, rr=-1):
 
     if rr == -1:
         examples = examples[lr:len(examples)]
+    else:
+        examples = examples[lr:rr]
         
     print(f"{len(examples)} {split} examples")
     return examples
@@ -162,6 +165,8 @@ def get_examples_svamp(split, lr=0, rr=-1):
 
     if rr == -1:
         examples = examples[lr:len(examples)]
+    else:
+        examples = examples[lr:rr]
         
     print(f"{len(examples)} {split} examples")
     return examples
@@ -180,6 +185,8 @@ def get_examples(split, model, lr=0, rr=-1):
         
     if rr == -1:
         examples = examples[lr:len(examples)]
+    else:
+        examples = examples[lr:rr]
 
     new_examples = []
     
@@ -195,41 +202,56 @@ def get_examples(split, model, lr=0, rr=-1):
     return new_examples
 
 
+def find_numbers(x: str) -> list[str]:
+    numbers = re.compile(
+      r'-?[\d,]*\.?\d+',
+      re.MULTILINE | re.DOTALL | re.IGNORECASE,
+      ).findall(x)
+    return numbers
+
+
+def find_number(x: str, answer_delimiter: Optional[str] = 'Answer:') -> str:
+    if answer_delimiter in x:
+        answer = x.split(answer_delimiter)[-1]
+        numbers = find_numbers(answer)
+        if numbers:
+            return numbers[0]
+
+    numbers = find_numbers(x)
+    if numbers:
+        return numbers[-1]
+    return ''
+
+
+def is_float(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
+def maybe_remove_comma(x: str) -> str:
+    if is_float(x):
+        return x
+    return x.replace(',', '')
+
 def return_predicted_answer(question_answer_list):
+    correct = 0
     for out in question_answer_list:
-        soln = out['generated_text']
-        exact = float(out['answer'])
-        if 'The answer is' in soln:
-            soln = soln.split('The answer is')[-1]
-            prob_ans = re.findall(r"[-+]?(?:[0-9,]*\.*\d+)", soln)
-            prob_ans = [float(x.replace(',', '')) for x in prob_ans]
-            prob_ans = [float(x) for x in prob_ans]
-            if len(prob_ans) > 0 and exact == prob_ans[0]:
-                out['predict'] = out['answer']
-                out['is_correct'] = 1
-            else:
-                if len(prob_ans) > 0: out['predict'] = str(prob_ans[0])
-                else: out['predict'] = "-10000000000"
-                out['is_correct'] = 0
+        soln = out['generated_text'].split('\nQ:')[0]
+        short_responses = maybe_remove_comma(find_number(soln))
+        
+        if short_responses != '':
+            correct += float(maybe_remove_comma(find_number(out['answer']))) == float(short_responses)
+            out['is_correct'] = int(float(maybe_remove_comma(find_number(out['answer']))) == float(short_responses))
+            out['predict'] = short_responses
         else:
-            out['predict'] = "-10000000000"
             out['is_correct'] = 0
+            out['predict'] = "-10000000000"
             
-        soln = out['generated_text']
-        exact = float(out['answer'])
-        prob_ans = re.findall(r"[-+]?(?:[0-9,]*\.*\d+)", soln)
-        prob_ans = [float(x.replace(',', '')) for x in prob_ans]
-        if len(prob_ans) > 0 and exact == prob_ans[-1]:
-            out['predict_last'] = out['answer']
-            out['is_correct_last'] = 1
-        else:
-            if len(prob_ans) > 0: out['predict_last'] = str(prob_ans[-1])
-            else: out['predict_last'] = "-10000000000"
-            out['is_correct_last'] = 0
-            
+    print('Accuracy: ', correct/(1.0*len(question_answer_list)))
     return question_answer_list
-
-
 
 
 def get_answer(question_answer_list):
@@ -263,3 +285,36 @@ def get_answer(question_answer_list):
             out['predict_last'] = out['predict']
     
     return question_answer_list 
+
+
+def get_response(prompt):
+    response = litellm.completion(
+        model="gemini-pro",
+        messages=[
+            {
+                "role": "system",
+                "content": "Follow the given examples and answer the question.",
+            },
+            {"role": "user", "content": prompt},
+        ],
+        max_retries=3,
+        safety_settings=[
+            {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_NONE",
+            },
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH",
+                "threshold": "BLOCK_NONE",
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_NONE",
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_NONE",
+            },
+        ]
+    )
+    return response

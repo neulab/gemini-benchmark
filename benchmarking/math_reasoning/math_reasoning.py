@@ -23,6 +23,7 @@ import yaml
 import click
 import sys
 from litellm import Router
+from prompts import * 
 sys.path.append('../utils')
 from reasoning_utils import * 
 
@@ -57,9 +58,9 @@ class GSMDataset(th.utils.data.Dataset):
 @click.option("--rr", default=-1, type=int)
 def main(task, model, lr, rr):
     
-    with open("gsm8k-cot.yaml", 'r') as stream:
-        data_loaded = yaml.safe_load(stream)
-    prompt = data_loaded['doc_to_text']
+    # with open("gsm8k-cot.yaml", 'r') as stream:
+    #     data_loaded = yaml.safe_load(stream)
+    # prompt = data_loaded['doc_to_text']
     
     question_answer_list = []
     
@@ -90,8 +91,8 @@ def main(task, model, lr, rr):
         
         mlist = []
         for q in qn:
-            q_prompt = prompt.replace("{{question}}", "{question}").format(question=q)
-            
+            # q_prompt = prompt.replace("{{question}}", "{question}").format(question=q)
+            q_prompt = (PROMPT + '\n' + TEMPLATE.format(question=q))
             mlist.append([{"role": "system", "content": "Follow the given examples and answer the question."},
                           {"role": "user", "content": q_prompt}])
         

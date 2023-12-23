@@ -110,42 +110,16 @@ def main(task, model, lr, rr):
 
             
             predictions = []
-            retry, timeout = 3, 1
-            for msg in mlist:
-              retries = 0
-              response = "-1000000"
-              while retries < retry:
-                  try:
-                      response = litellm.completion(model=model, messages=msg)
-                      time.sleep(1)
-                      break
-                  except Exception as e: 
-                      print('Error: ', e) 
-                      if 'The response was blocked' in str(e):
-                        response = '#######'
-                        break
-                      print(f'Sleeping for {timeout} seconds')
-                      time.sleep(timeout)
-                      timeout += 1
-                      retries += 1
-                
-              if response == "-1000000":
-                response = litellm.completion(model=model, messages=msg)
-              if response == '#######':
-                response = "-1000000"
-              
-              predictions.append(response)
-
-            # predictions = asyncio.run(
-            #     dispatch_openai_requests(
-            #         router=router,
-            #         messages_list=mlist,
-            #         model=model,
-            #         temperature=0.0,
-            #         max_tokens=512,
-            #         top_p=1.0,
-            #     )
-            # )
+            for q, qi in zip(qn, qid):
+                if task == 'dyck_languages': q_prompt = prompt.replace("{{input}}", q)
+                else: q_prompt = prompt.replace("{{input}}", "{input}").format(input=q)
+                try:
+                    response = get_response(q_prompt.strip())
+                    predictions.append(response)
+                except Exception as e:
+                    print(q_prompt.strip())
+                    print(qi)
+                    predictions.append(str(e))
 
             for i, (response, qi, q, a) in enumerate(zip(predictions, qid, qn, ans)):
                 if task == 'dyck_languages': q_prompt = prompt.replace("{{input}}", q)
