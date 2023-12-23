@@ -49,11 +49,9 @@ litellm.vertex_location = "your-location"
 
 The model configuration and sampling parameters can then be specified in `config.py`.
 
-
 ### Evaluation
 We have a script `eval_runs.py` that handles evaluation for BLEU, chrF, SLR and TER.
 `python eval_runs.py --results_dir [folder] --langs_file [a file with line separated languages to be evaluated]  --tokenizer [tokenizer-this is optional]`
 ### Notebooks
 *langid_classifier.ipynb* - for classifying the langauge of the predictions
 *visualization/translation_flores/zeno_upload.py* - This script shows how to upload results to the Zeno library and visualize them.
-
