@@ -22,8 +22,8 @@ def main():
     args = parser.parse_args()
 
     df = pd.read_csv(args.res, sep="\t")
-    hyps = [str(line) for line in df["label"].tolist()]
-    refs = [str(line) for line in df["predictions"].tolist()]
+    hyps = [str(line) for line in df["predictions"].tolist()]
+    refs = [str(line) for line in df["label"].tolist()]
 
     sentence_metrics = [[] for _ in range(len(refs))]
 
